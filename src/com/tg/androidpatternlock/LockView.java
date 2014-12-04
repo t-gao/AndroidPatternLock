@@ -1,9 +1,6 @@
 package com.tg.androidpatternlock;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -13,6 +10,7 @@ import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -43,7 +41,7 @@ public class LockView extends View {
     private boolean mSizesInitialized = false;
 
     private ArrayList<Integer> mSelectedIndices = new ArrayList<Integer>();
-    private HashMap<Integer, Cell> mAllCells = new HashMap<Integer, Cell>();
+    private SparseArray<Cell> mAllCells = new SparseArray<Cell>();
     // private boolean mAllCellsInitialized = false;
 
     private DisplayMode mDisplayMode = DisplayMode.Normal;
@@ -129,11 +127,14 @@ public class LockView extends View {
             Log.d(LOG_TAG, "drawCircles");
         }
         // canvas.drawColor(Color.TRANSPARENT);
-        Iterator<Map.Entry<Integer, Cell>> iter = mAllCells.entrySet()
-                .iterator();
-        while (iter.hasNext()) {
-            Map.Entry<Integer, Cell> entry = iter.next();
-            Cell c = entry.getValue();
+        // Iterator<Map.Entry<Integer, Cell>> iter = mAllCells.entrySet()
+        // .iterator();
+        // while (iter.hasNext()) {
+        int size = mAllCells.size();
+        for (int i = 0; i < size; i++) {
+            // Map.Entry<Integer, Cell> entry = iter.next();
+            // Cell c = entry.getValue();
+            Cell c = mAllCells.valueAt(i);
             boolean selected = mSelectedIndices.contains(c.index);
             if (mDisplayMode != DisplayMode.Normal && selected) {
                 drawCircleSelected(canvas, c.centerX, c.centerY, mRadius, 0,
@@ -211,7 +212,8 @@ public class LockView extends View {
         if (drawLine) {
             Cell c1 = mAllCells.get(mSelectedIndices.get(0));
             mCurrentPath.moveTo(c1.centerX, c1.centerY);
-            for (int i = 1; i < mSelectedIndices.size(); i++) {
+            int size = mSelectedIndices.size();
+            for (int i = 1; i < size; i++) {
                 Cell c = mAllCells.get(mSelectedIndices.get(i));
                 mCurrentPath.lineTo(c.centerX, c.centerY);
             }
@@ -232,7 +234,7 @@ public class LockView extends View {
         resetPattern();
         final float x = event.getX();
         final float y = event.getY();
-        int hitIndex = detectHitAndDraw(x, y);
+        /* int hitIndex = */detectHitAndDraw(x, y);
         // if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
         mPatternInProgress = true;
         mDisplayMode = DisplayMode.Correct;
