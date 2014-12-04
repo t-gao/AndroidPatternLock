@@ -1,11 +1,16 @@
 package com.tg.androidpatternlock;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Paint.Style;
+import android.graphics.Path;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -33,9 +38,13 @@ public class LockView extends View {
     private float[] mRowCenters;// y
     private float[] mColumnCenters;// x
 
+    private final Path mCurrentPath = new Path();
+
     private boolean mSizesInitialized = false;
 
     private ArrayList<Integer> mSelectedIndices = new ArrayList<Integer>();
+    private HashMap<Integer, Cell> mAllCells = new HashMap<Integer, Cell>();
+//    private boolean mAllCellsInitialized = false;
 
     private DisplayMode mDisplayMode = DisplayMode.Normal;
 
@@ -87,6 +96,15 @@ public class LockView extends View {
             mColumnCenters[i] = mFirstX + i * mGridWidth;
         }
 
+        for (int i = 0; i < MAX_ROWS; i++) {
+            float rowY = mRowCenters[i];
+            for (int j = 0; j < MAX_COLUMNS; j++) {
+                float colunmX = mColumnCenters[j];
+                int index = getIndexByRowAndColumn(i, j);
+                mAllCells.put(index, new Cell(index, i, j, colunmX, rowY));
+            }
+        }
+
         mSizesInitialized = true;
     }
 
@@ -95,22 +113,22 @@ public class LockView extends View {
             Log.d(LOG_TAG, "drawCircles");
         }
         canvas.drawColor(Color.TRANSPARENT);
-        for (int i = 0; i < MAX_ROWS; i++) {
-            float rowY = mRowCenters[i];
-            for (int j = 0; j < MAX_COLUMNS; j++) {
-                float colunmX = mColumnCenters[j];
-                int index = getIndexByRowAndColumn(i, j);
-                boolean selected = mSelectedIndices.contains(index);
-                if (mDisplayMode != DisplayMode.Normal && selected) {
-                    drawCircleSelected(canvas, colunmX, rowY, mRadius, 0, true);
-                } else {
-                    drawCircleNormal(canvas, colunmX, rowY, mRadius);
-                }
-                if (DEBUG) {
-                    Log.d(LOG_TAG, "ROW: " + i + ", COLUMN: " + j + "; x: "
-                            + colunmX + ", y: " + rowY + ", selected: "
-                            + selected);
-                }
+        Iterator<Map.Entry<Integer, Cell>> iter = mAllCells.entrySet()
+                .iterator();
+        while (iter.hasNext()) {
+            Map.Entry<Integer, Cell> entry = iter.next();
+            Cell c = entry.getValue();
+            boolean selected = mSelectedIndices.contains(c.index);
+            if (mDisplayMode != DisplayMode.Normal && selected) {
+                drawCircleSelected(canvas, c.centerX, c.centerY, mRadius, 0,
+                        true);
+            } else {
+                drawCircleNormal(canvas, c.centerX, c.centerY, mRadius);
+            }
+            if (DEBUG) {
+                Log.d(LOG_TAG, "ROW: " + c.row + ", COLUMN: " + c.column
+                        + "; x: " + c.centerX + ", y: " + c.centerY
+                        + ", selected: " + selected);
             }
         }
     }
@@ -121,6 +139,9 @@ public class LockView extends View {
             Log.d(LOG_TAG, "onDraw");
         }
         initSizes();
+        if (mPatternInProgress) {
+            drawPath(canvas, true);//TODO:
+        }
         drawCircles(canvas);
     }
 
@@ -143,27 +164,57 @@ public class LockView extends View {
     }
 
     private int detectHitAndDraw(float eventX, float eventY) {
+        mCurrentPath.rewind();
+
+        boolean detected = false;
+        int index = -1;
         int row = detectRow(eventY);
         if (row >= 0) {
             int column = detectColumn(eventX);
             if (column >= 0) {
-                int index = getIndexByRowAndColumn(row, column);
-                if (!mSelectedIndices.contains(index)) {
+                index = getIndexByRowAndColumn(row, column);
+                if (index >= 0 && index < MAX_ROWS * MAX_COLUMNS && !mSelectedIndices.contains(index)) {
+                    detected = true;
                     mSelectedIndices.add(index);
                     float centerX = mFirstX + column * mGridWidth;
                     float centerY = mFirstY + row * mGridWidth;
 
-                    invalidate((int) (centerX - mRadius) - 1,
-                            (int) (centerY - mRadius) - 1,
-                            (int) (centerX + mRadius) + 1,
-                            (int) (centerY + mRadius) + 1);
+//                    if (mSelectedIndices.size() == 1) {
+//                        mCurrentPath.moveTo(centerX, centerY);
+//                    } else {
+//                        mCurrentPath.lineTo(centerX, centerY);
+//                    }
 
-                    return index;
+                    //if (!drawLine) {
+                        invalidate((int) (centerX - mRadius) - 1,
+                                (int) (centerY - mRadius) - 1,
+                                (int) (centerX + mRadius) + 1,
+                                (int) (centerY + mRadius) + 1);
+                    //}
+
                 }
             }
         }
 
-        return -1;
+        boolean drawLine = !mSelectedIndices.isEmpty();
+        if (drawLine) {
+            Cell c1 = mAllCells.get(mSelectedIndices.get(0));
+            mCurrentPath.moveTo(c1.centerX, c1.centerY);
+            for (int i = 1; i < mSelectedIndices.size(); i++) {
+                Cell c = mAllCells.get(mSelectedIndices.get(i));
+                mCurrentPath.lineTo(c.centerX, c.centerY);
+            }
+        }
+
+        if (!detected && drawLine) {
+            mCurrentPath.lineTo(eventX, eventY);
+        }
+
+        if (drawLine) {
+            invalidate();
+        }
+
+        return index;
     }
 
     private void handleActionDown(MotionEvent event) {
@@ -171,10 +222,10 @@ public class LockView extends View {
         final float x = event.getX();
         final float y = event.getY();
         int hitIndex = detectHitAndDraw(x, y);
-        if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
+       // if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
             mPatternInProgress = true;
             mDisplayMode = DisplayMode.Correct;
-        }
+        //}
     }
 
     private void handleActionMove(MotionEvent event) {
@@ -192,6 +243,7 @@ public class LockView extends View {
         mSelectedIndices.clear();
         mPatternInProgress = false;
         mDisplayMode = DisplayMode.Normal;
+        mCurrentPath.rewind();
         invalidate();
     }
 
@@ -231,6 +283,18 @@ public class LockView extends View {
                     + ", detected column: " + column);
         }
         return column;
+    }
+
+    protected void drawPath(Canvas canvas, boolean correct) {
+        Paint paint = new Paint();
+        paint.setColor(correct ? Color.BLUE : Color.RED);
+        paint.setStrokeWidth(mRadius * 0.25f);//TODO: HARD CODE
+        paint.setAntiAlias(true);
+        paint.setDither(true);
+        paint.setStyle(Style.STROKE);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        canvas.drawPath(mCurrentPath, paint);
     }
 
     protected void drawCircleNormal(Canvas canvas, float cx, float cy,
@@ -290,6 +354,21 @@ public class LockView extends View {
         coords[0] = index / MAX_COLUMNS;// row
         coords[1] = index % MAX_COLUMNS;
         return coords;
+    }
+
+    class Cell {
+        Cell(int index, int row, int column, float centerX, float centerY) {
+            this.index = index;
+            this.row = row;
+            this.column = column;
+            this.centerX = centerX;
+            this.centerY = centerY;
+        }
+        int index;
+        int row;
+        int column;
+        float centerX;
+        float centerY;
     }
 
     private enum DisplayMode {
