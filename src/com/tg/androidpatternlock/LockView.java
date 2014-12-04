@@ -44,11 +44,20 @@ public class LockView extends View {
 
     private ArrayList<Integer> mSelectedIndices = new ArrayList<Integer>();
     private HashMap<Integer, Cell> mAllCells = new HashMap<Integer, Cell>();
-//    private boolean mAllCellsInitialized = false;
+    // private boolean mAllCellsInitialized = false;
 
     private DisplayMode mDisplayMode = DisplayMode.Normal;
 
     private boolean mPatternInProgress = false;
+
+    private Paint mCirclePaint;
+    private int mCircleColorNormal;
+    private int mCircleColorCorrect;
+    private int mCircleColorWrong;
+
+    private Paint mPathPaint;
+    private int mPathColorCorrect;
+    private int mPathColorWrong;
 
     public LockView(Context context) {
         super(context);
@@ -68,6 +77,13 @@ public class LockView extends View {
     private void init() {
         mRowCenters = new float[MAX_ROWS];
         mColumnCenters = new float[MAX_COLUMNS];
+
+        // TODO: get colors from attr
+        mCircleColorNormal = Color.WHITE;
+        mCircleColorCorrect = Color.BLUE;
+        mCircleColorWrong = Color.RED;
+        mPathColorCorrect = Color.BLUE;
+        mPathColorWrong = Color.RED;
     }
 
     private void initSizes() {
@@ -112,7 +128,7 @@ public class LockView extends View {
         if (DEBUG) {
             Log.d(LOG_TAG, "drawCircles");
         }
-        canvas.drawColor(Color.TRANSPARENT);
+        // canvas.drawColor(Color.TRANSPARENT);
         Iterator<Map.Entry<Integer, Cell>> iter = mAllCells.entrySet()
                 .iterator();
         while (iter.hasNext()) {
@@ -140,7 +156,7 @@ public class LockView extends View {
         }
         initSizes();
         if (mPatternInProgress) {
-            drawPath(canvas, true);//TODO:
+            drawPath(canvas, true);// TODO:
         }
         drawCircles(canvas);
     }
@@ -173,24 +189,19 @@ public class LockView extends View {
             int column = detectColumn(eventX);
             if (column >= 0) {
                 index = getIndexByRowAndColumn(row, column);
-                if (index >= 0 && index < MAX_ROWS * MAX_COLUMNS && !mSelectedIndices.contains(index)) {
+                if (index >= 0 && index < MAX_ROWS * MAX_COLUMNS
+                        && !mSelectedIndices.contains(index)) {
                     detected = true;
                     mSelectedIndices.add(index);
                     float centerX = mFirstX + column * mGridWidth;
                     float centerY = mFirstY + row * mGridWidth;
 
-//                    if (mSelectedIndices.size() == 1) {
-//                        mCurrentPath.moveTo(centerX, centerY);
-//                    } else {
-//                        mCurrentPath.lineTo(centerX, centerY);
-//                    }
-
-                    //if (!drawLine) {
-                        invalidate((int) (centerX - mRadius) - 1,
-                                (int) (centerY - mRadius) - 1,
-                                (int) (centerX + mRadius) + 1,
-                                (int) (centerY + mRadius) + 1);
-                    //}
+                    // if (!drawLine) {
+                    invalidate((int) (centerX - mRadius) - 1,
+                            (int) (centerY - mRadius) - 1,
+                            (int) (centerX + mRadius) + 1,
+                            (int) (centerY + mRadius) + 1);
+                    // }
 
                 }
             }
@@ -222,14 +233,13 @@ public class LockView extends View {
         final float x = event.getX();
         final float y = event.getY();
         int hitIndex = detectHitAndDraw(x, y);
-       // if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
-            mPatternInProgress = true;
-            mDisplayMode = DisplayMode.Correct;
-        //}
+        // if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
+        mPatternInProgress = true;
+        mDisplayMode = DisplayMode.Correct;
+        // }
     }
 
     private void handleActionMove(MotionEvent event) {
-        // TODO: draw path
         final float x = event.getX();
         final float y = event.getY();
         detectHitAndDraw(x, y);
@@ -286,51 +296,61 @@ public class LockView extends View {
     }
 
     protected void drawPath(Canvas canvas, boolean correct) {
-        Paint paint = new Paint();
-        paint.setColor(correct ? Color.BLUE : Color.RED);
-        paint.setStrokeWidth(mRadius * 0.25f);//TODO: HARD CODE
-        paint.setAntiAlias(true);
-        paint.setDither(true);
-        paint.setStyle(Style.STROKE);
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        paint.setStrokeCap(Paint.Cap.ROUND);
-        canvas.drawPath(mCurrentPath, paint);
+        if (mPathPaint == null) {
+            mPathPaint = new Paint();
+            mPathPaint.setStrokeWidth(mRadius * 0.25f);// TODO: HARD CODE
+            mPathPaint.setAntiAlias(true);
+            mPathPaint.setDither(true);
+            mPathPaint.setStyle(Style.STROKE);
+            mPathPaint.setStrokeJoin(Paint.Join.ROUND);
+            mPathPaint.setStrokeCap(Paint.Cap.ROUND);
+        }
+        mPathPaint.setColor(correct ? mPathColorCorrect : mPathColorWrong);
+        canvas.drawPath(mCurrentPath, mPathPaint);
     }
 
     protected void drawCircleNormal(Canvas canvas, float cx, float cy,
             float radius) {
-        Paint paint = new Paint();
-        paint.setColor(Color.WHITE);
-        paint.setStrokeWidth(getCircleStrokeWidth());
-        paint.setAntiAlias(true);
-        paint.setStyle(Paint.Style.STROKE);
-        canvas.drawCircle(cx, cy, radius, paint);
+        if (mCirclePaint == null) {
+            mCirclePaint = new Paint();
+            mCirclePaint.setDither(true);
+            mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
+            mCirclePaint.setAntiAlias(true);
+        }
+        mCirclePaint.setStyle(Paint.Style.STROKE);
+        mCirclePaint.setColor(mCircleColorNormal);
+        canvas.drawCircle(cx, cy, radius, mCirclePaint);
     }
 
     protected void drawCircleSelected(Canvas canvas, float cx, float cy,
             float radius, float innerRadius, boolean correct) {
-        Paint paint = new Paint();
-        paint.setColor(correct ? Color.BLUE : Color.RED);
-        paint.setStrokeWidth(getCircleStrokeWidth());
-        paint.setAntiAlias(true);
-        paint.setStyle(Paint.Style.STROKE);
-        canvas.drawCircle(cx, cy, radius, paint);
+        if (mCirclePaint == null) {
+            mCirclePaint = new Paint();
+            mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
+            mCirclePaint.setDither(true);
+            mCirclePaint.setAntiAlias(true);
+        }
+        mCirclePaint
+                .setColor(correct ? mCircleColorCorrect : mCircleColorWrong);
+
+        mCirclePaint.setStyle(Paint.Style.STROKE);
+        canvas.drawCircle(cx, cy, radius, mCirclePaint);
 
         // TODO: hard code
         if (innerRadius <= 0 || innerRadius > 0.7f * radius) {
             innerRadius = 0.3f * radius;// default
         }
-        paint.setStyle(Paint.Style.FILL);
-        canvas.drawCircle(cx, cy, innerRadius, paint);
+        mCirclePaint.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(cx, cy, innerRadius, mCirclePaint);
     }
 
     private float getGridSize() {
         float w = this.getWidth();
         float h = this.getHeight();
-        float cellW = w / MAX_COLUMNS;
-        float cellH = h / MAX_ROWS;
+        float gridW = w / MAX_COLUMNS;
+        float gridH = h / MAX_ROWS;
 
-        return Math.min(cellW, cellH);
+        return Math.min(gridW, gridH);
     }
 
     protected static float getCircleStrokeWidth() {
@@ -364,6 +384,7 @@ public class LockView extends View {
             this.centerX = centerX;
             this.centerY = centerY;
         }
+
         int index;
         int row;
         int column;
