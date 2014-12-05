@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Path;
+import android.os.Handler;
+import android.os.Message;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.SparseArray;
@@ -19,6 +21,9 @@ public class LockView extends View {
     private static boolean DEBUG = true;
 
     private static final float CIRCLE_STROKE_WIDTH_DEFAULT = 4.0f;
+
+    private static final int MSG_RESET = 0;
+    private static final int MSG_SHOW_WRONG = 1;
 
     private static final int MAX_COLUMNS = 3;
     private static final int MAX_ROWS = 3;
@@ -36,7 +41,7 @@ public class LockView extends View {
     private float[] mRowCenters;// y
     private float[] mColumnCenters;// x
 
-    private final Path mCurrentPath = new Path();
+    private boolean mTouchForbidden = false;
 
     private boolean mSizesInitialized = false;
 
@@ -44,6 +49,7 @@ public class LockView extends View {
     private SparseArray<Cell> mAllCells = new SparseArray<Cell>();
     // private boolean mAllCellsInitialized = false;
 
+    private WorkMode mWorkMode = WorkMode.Inputing;// default is Inputing
     private DisplayMode mDisplayMode = DisplayMode.Normal;
 
     private boolean mPatternInProgress = false;
@@ -53,9 +59,20 @@ public class LockView extends View {
     private int mCircleColorCorrect;
     private int mCircleColorWrong;
 
+    private final Path mCurrentPath = new Path();
     private Paint mPathPaint;
     private int mPathColorCorrect;
     private int mPathColorWrong;
+
+    private Handler mHandler;
+
+    private CreationHandler mCreationHandler;
+    private InputHandler mInputHandler;
+
+    private PatternListener mPatternListener;
+    private PatternPasswordStorageFetcher mPatternFetcher;
+
+    private CreationHandler.PatternCreatingListener mCreatingListener;
 
     public LockView(Context context) {
         super(context);
@@ -82,6 +99,52 @@ public class LockView extends View {
         mCircleColorWrong = Color.RED;
         mPathColorCorrect = Color.BLUE;
         mPathColorWrong = Color.RED;
+
+        mCreationHandler = new CreationHandler();
+        mCreatingListener = new CreationHandler.PatternCreatingListener() {
+
+            @Override
+            public void onInputOnce() {
+                sendResetMessageDelayed(500);
+                if (mPatternListener != null) {
+                    mPatternListener.onCreatingInputOnce();
+                }
+            }
+
+            @Override
+            public void onComplete(boolean match, String encryptedPatternStr) {
+                if (match) {
+                    sendResetMessageDelayed(1000);
+                } else {
+                    sendMessageShowWrong();
+                }
+
+                if (mPatternListener != null) {
+                    mPatternListener.onCreatingInputComplete(match,
+                            encryptedPatternStr);
+                }
+            }
+        };
+        mCreationHandler.setPatternCreatingListener(mCreatingListener);
+
+        mInputHandler = new InputHandler();
+
+        mHandler = new Handler() {
+
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                case MSG_RESET:
+                    resetPattern();
+                    break;
+                case MSG_SHOW_WRONG:
+                    drawWrong();
+                    sendResetMessageDelayed(1000);
+                    break;
+                }
+                super.handleMessage(msg);
+            }
+        };
     }
 
     private void initSizes() {
@@ -138,7 +201,7 @@ public class LockView extends View {
             boolean selected = mSelectedIndices.contains(c.index);
             if (mDisplayMode != DisplayMode.Normal && selected) {
                 drawCircleSelected(canvas, c.centerX, c.centerY, mRadius, 0,
-                        true);
+                        mDisplayMode == DisplayMode.Correct);
             } else {
                 drawCircleNormal(canvas, c.centerX, c.centerY, mRadius);
             }
@@ -151,19 +214,33 @@ public class LockView extends View {
     }
 
     @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        // make the height be equal to the width
+        int width = getDefaultSize(getSuggestedMinimumWidth(), widthMeasureSpec);
+        if (DEBUG) {
+            Log.d(LOG_TAG, "onMeasure, set width and height: " + width);
+        }
+        setMeasuredDimension(width, width);
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         if (DEBUG) {
             Log.d(LOG_TAG, "onDraw");
         }
         initSizes();
         if (mPatternInProgress) {
-            drawPath(canvas, true);// TODO:
+            drawPath(canvas, mDisplayMode == DisplayMode.Correct);
         }
         drawCircles(canvas);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (mTouchForbidden) {
+            return true;
+        }
+
         switch (event.getAction()) {
         case MotionEvent.ACTION_DOWN:
             handleActionDown(event);
@@ -175,9 +252,11 @@ public class LockView extends View {
             handleActionMove(event);
             return true;
         case MotionEvent.ACTION_CANCEL:
+            resetPattern();
             return true;
+        default:
+            return super.onTouchEvent(event);
         }
-        return super.onTouchEvent(event);
     }
 
     private int detectHitAndDraw(float eventX, float eventY) {
@@ -248,14 +327,44 @@ public class LockView extends View {
     }
 
     private void handleActionUp(MotionEvent event) {
-        // TODO
+        mTouchForbidden = true;
+        if (mWorkMode == WorkMode.Creating) {
+            mCreationHandler.completeInput(mSelectedIndices);
+        } else if (mWorkMode == WorkMode.Inputing) {
+            boolean correct = mInputHandler.check(mPatternFetcher,
+                    mSelectedIndices);
+            if (correct) {
+                sendResetMessageDelayed(300);
+            } else {
+                sendMessageShowWrong();
+            }
+            if (mPatternListener != null) {
+                mPatternListener.onInputCheckResult(correct);
+            }
+        }
+    }
+
+    private void sendMessageShowWrong() {
+        mTouchForbidden = true;
+        mHandler.sendEmptyMessage(MSG_SHOW_WRONG);
+    }
+
+    private void sendResetMessageDelayed(long delayMillis) {
+        mTouchForbidden = true;
+        mHandler.sendEmptyMessageDelayed(MSG_RESET, delayMillis);
     }
 
     private void resetPattern() {
         mSelectedIndices.clear();
         mPatternInProgress = false;
         mDisplayMode = DisplayMode.Normal;
+        mTouchForbidden = false;
         mCurrentPath.rewind();
+        invalidate();
+    }
+
+    protected void drawWrong() {
+        mDisplayMode = DisplayMode.Wrong;
         invalidate();
     }
 
@@ -378,7 +487,53 @@ public class LockView extends View {
         return coords;
     }
 
-    class Cell {
+    public void setWorkMode(WorkMode workMode) {
+        mWorkMode = workMode;
+        if (workMode == WorkMode.Creating) {
+            mCreationHandler.reset();
+        } else if (workMode == WorkMode.Inputing) {
+            mInputHandler.reset();
+        }
+
+        resetPattern();
+    }
+
+    /**
+     * Sets the pattern password fetcher to the LockView. Users of the LockView
+     * must call this so that the stored pattern can be fetched and compared to
+     * the one input by user.
+     * 
+     * @param fetcher
+     */
+    public void setPatternPasswordStorageFetcher(
+            PatternPasswordStorageFetcher fetcher) {
+        mPatternFetcher = fetcher;
+    }
+
+    public static abstract class PatternPasswordStorageFetcher {
+        public abstract ArrayList<Integer> fetch();
+
+        public abstract String fetchEncrypted();
+    }
+
+    public void setPatternListener(PatternListener listener) {
+        mPatternListener = listener;
+    }
+
+    public interface PatternListener {
+        public void onCreatingInputOnce();
+
+        public void onCreatingInputComplete(boolean match,
+                String encryptedPatternStr);
+
+        public void onInputCheckResult(boolean correct);
+    }
+
+    public static enum WorkMode {
+        Creating, Inputing
+    }
+
+    private class Cell {
         Cell(int index, int row, int column, float centerX, float centerY) {
             this.index = index;
             this.row = row;
