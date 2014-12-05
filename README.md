@@ -5,11 +5,11 @@ An Android library with the implementation of the pattern lock screen.
 
 Android 手势密码view.
 
-some encryption method are provided: MD5/SHA-1/SHA-256
+Some encryption methods are provided: MD5/SHA-1/SHA-256.
 
-How to use
+How to use:
 
-1. add this project to be your own project's library project.
+1. Add this project to be your own project's library project.
 
 2. Use the LockView in you layout xml file, as below:
       <com.tg.androidpatternlock.LockView
@@ -22,8 +22,11 @@ How to use
       mLockView = (LockView) findViewById(R.id.lockview);
 
       You should also call below methods:
+      
           mLockView.setPatternListener();
+          
           mLockView.setPatternPasswordStorageFetcher();
+          
           mLockView.setWorkMode();
   
-      There are two work modes, creating and input, which respectively should be used when user is creating or inputing pattern       password.
+      There are two work modes, creating and input, which respectively should be used when user is creating or inputing pattern password.
