@@ -12,6 +12,7 @@ How to use:
 1. Add this project to be your own project's library project.
 
 2. Use the LockView in you layout xml file, as below:
+
       <com.tg.androidpatternlock.LockView
         android:id="@+id/lockview"
         android:layout_width="match_parent"
