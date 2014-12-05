@@ -1,7 +1,29 @@
 AndroidPatternLock
 ==================
 
-An android library with the implementation of the pattern lock screen
+An Android library with the implementation of the pattern lock screen.
 
+Android 手势密码view.
 
-The data is read from a db which is pre-created. Prior to Android 2.3, any compressed asset file with an uncompressed size of over 1 MB cannot be read from the APK. With this limitation, the db file is cut into several pieces which are combined back together to the one database file on the first run of the app. An index is also created to speed up the query of the db.
+some encryption method are provided: MD5/SHA-1/SHA-256
+
+How to use
+
+1. add this project to be your own project's library project.
+
+2. Use the LockView in you layout xml file, as below:
+      <com.tg.androidpatternlock.LockView
+        android:id="@+id/lockview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        />
+
+3. In your activity:
+      mLockView = (LockView) findViewById(R.id.lockview);
+
+      You should also call below methods:
+          mLockView.setPatternListener();
+          mLockView.setPatternPasswordStorageFetcher();
+          mLockView.setWorkMode();
+  
+      There are two work modes, creating and input, which respectively should be used when user is creating or inputing pattern       password.
