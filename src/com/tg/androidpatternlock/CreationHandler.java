@@ -19,7 +19,7 @@ public class CreationHandler {
             // mPatternCache = (ArrayList<Integer>) pattern.clone();
             mState = State.CompleteOnce;
             if (mPatternCreatingListener != null) {
-                mPatternCreatingListener.onInputOnce();
+                mPatternCreatingListener.onInputOnce(pattern);
             }
         } else if (mState == State.CompleteOnce) {
             new CompleteCreationTask().execute(pattern);
@@ -79,7 +79,7 @@ public class CreationHandler {
     }
 
     public interface PatternCreatingListener {
-        public void onInputOnce();
+        public void onInputOnce(ArrayList<Integer> pattern);
 
         public void onComplete(boolean match, String encryptedPatternStr);
     }

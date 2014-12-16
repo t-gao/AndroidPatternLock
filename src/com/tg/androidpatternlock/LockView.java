@@ -49,6 +49,9 @@ public class LockView extends View {
     private SparseArray<Cell> mAllCells = new SparseArray<Cell>();
     // private boolean mAllCellsInitialized = false;
 
+    private boolean mIsThumbMode = false;
+
+    private UiStyle mUiStyle = UiStyle.Circle;
     private WorkMode mWorkMode = WorkMode.Inputing;// default is Inputing
     private DisplayMode mDisplayMode = DisplayMode.Normal;
 
@@ -76,38 +79,40 @@ public class LockView extends View {
 
     public LockView(Context context) {
         super(context);
-        init();
+        init(context);
     }
 
     public LockView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init();
+        init(context);
     }
 
     public LockView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-        init();
+        init(context);
     }
 
-    private void init() {
+    private void init(Context context) {
         mRowCenters = new float[MAX_ROWS];
         mColumnCenters = new float[MAX_COLUMNS];
 
         // TODO: get colors from attr
-        mCircleColorNormal = Color.WHITE;
-        mCircleColorCorrect = Color.BLUE;
+        mCircleColorNormal = context.getResources().getColor(
+                R.color.circle_normal);
+        mCircleColorCorrect = context.getResources().getColor(
+                R.color.circle_selected);
         mCircleColorWrong = Color.RED;
-        mPathColorCorrect = Color.BLUE;
-        mPathColorWrong = Color.RED;
+        mPathColorCorrect = mCircleColorCorrect;
+        mPathColorWrong = mCircleColorWrong;
 
         mCreationHandler = new CreationHandler();
         mCreatingListener = new CreationHandler.PatternCreatingListener() {
 
             @Override
-            public void onInputOnce() {
+            public void onInputOnce(ArrayList<Integer> pattern) {
                 sendResetMessageDelayed(500);
                 if (mPatternListener != null) {
-                    mPatternListener.onCreatingInputOnce();
+                    mPatternListener.onCreatingInputOnce(pattern);
                 }
             }
 
@@ -200,10 +205,19 @@ public class LockView extends View {
             Cell c = mAllCells.valueAt(i);
             boolean selected = mSelectedIndices.contains(c.index);
             if (mDisplayMode != DisplayMode.Normal && selected) {
-                drawCircleSelected(canvas, c.centerX, c.centerY, mRadius, 0,
-                        mDisplayMode == DisplayMode.Correct);
+                if (mUiStyle == UiStyle.Dot) {
+                    drawDotSelected(canvas, c.centerX, c.centerY,
+                            mRadius * 0.5f, mDisplayMode == DisplayMode.Correct);
+                } else {
+                    drawCircleSelected(canvas, c.centerX, c.centerY, mRadius,
+                            0, mDisplayMode == DisplayMode.Correct);
+                }
             } else {
-                drawCircleNormal(canvas, c.centerX, c.centerY, mRadius);
+                if (mUiStyle == UiStyle.Dot) {
+                    drawDotNormal(canvas, c.centerX, c.centerY, mRadius * 0.5f);
+                } else {
+                    drawCircleNormal(canvas, c.centerX, c.centerY, mRadius);
+                }
             }
             if (DEBUG) {
                 Log.d(LOG_TAG, "ROW: " + c.row + ", COLUMN: " + c.column
@@ -237,7 +251,7 @@ public class LockView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (mTouchForbidden) {
+        if (mIsThumbMode || mTouchForbidden) {
             return true;
         }
 
@@ -356,6 +370,7 @@ public class LockView extends View {
 
     private void resetPattern() {
         mSelectedIndices.clear();
+        mIsThumbMode = false;
         mPatternInProgress = false;
         mDisplayMode = DisplayMode.Normal;
         mTouchForbidden = false;
@@ -420,6 +435,30 @@ public class LockView extends View {
         canvas.drawPath(mCurrentPath, mPathPaint);
     }
 
+    protected void drawDot(Canvas canvas, float cx, float cy, float radius,
+            int color) {
+        if (mCirclePaint == null) {
+            mCirclePaint = new Paint();
+            mCirclePaint.setDither(true);
+            mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
+            mCirclePaint.setAntiAlias(true);
+        }
+
+        mCirclePaint.setStyle(Paint.Style.FILL);
+        mCirclePaint.setColor(color);
+        canvas.drawCircle(cx, cy, radius, mCirclePaint);
+    }
+
+    private void drawDotNormal(Canvas canvas, float cx, float cy, float radius) {
+        drawDot(canvas, cx, cy, radius, mCircleColorNormal);
+    }
+
+    private void drawDotSelected(Canvas canvas, float cx, float cy,
+            float radius, boolean correct) {
+        drawDot(canvas, cx, cy, radius, correct ? mCircleColorCorrect
+                : mCircleColorWrong);
+    }
+
     protected void drawCircleNormal(Canvas canvas, float cx, float cy,
             float radius) {
         if (mCirclePaint == null) {
@@ -476,15 +515,34 @@ public class LockView extends View {
         return row * MAX_COLUMNS + column;
     }
 
-    private int[] getRowAndColumnByIndex(int index) {
-        if (index < 0 || index >= MAX_ROWS * MAX_COLUMNS) {
-            return null;
-        }
+//    private int[] getRowAndColumnByIndex(int index) {
+//        if (index < 0 || index >= MAX_ROWS * MAX_COLUMNS) {
+//            return null;
+//        }
+//
+//        int[] coords = new int[2];
+//        coords[0] = index / MAX_COLUMNS;// row
+//        coords[1] = index % MAX_COLUMNS;
+//        return coords;
+//    }
 
-        int[] coords = new int[2];
-        coords[0] = index / MAX_COLUMNS;// row
-        coords[1] = index % MAX_COLUMNS;
-        return coords;
+    public void setThumbMode(boolean isThumb) {
+        resetPattern();
+        mIsThumbMode = isThumb;
+        mDisplayMode = DisplayMode.Correct;
+    }
+
+    public void setThumbPattern(ArrayList<Integer> pattern) {
+        if (pattern == null) {
+            mSelectedIndices.clear();
+        } else {
+            mSelectedIndices = pattern;
+        }
+        invalidate();
+    }
+
+    public void setUiStyle(UiStyle uiStyle) {
+        mUiStyle = uiStyle;
     }
 
     public void setWorkMode(WorkMode workMode) {
@@ -521,7 +579,7 @@ public class LockView extends View {
     }
 
     public interface PatternListener {
-        public void onCreatingInputOnce();
+        public void onCreatingInputOnce(ArrayList<Integer> pattern);
 
         public void onCreatingInputComplete(boolean match,
                 String encryptedPatternStr);
@@ -531,6 +589,10 @@ public class LockView extends View {
 
     public static enum WorkMode {
         Creating, Inputing
+    }
+
+    public static enum UiStyle {
+        Circle, Dot
     }
 
     private class Cell {
