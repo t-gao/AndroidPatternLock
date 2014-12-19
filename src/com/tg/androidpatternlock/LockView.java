@@ -77,6 +77,8 @@ public class LockView extends View {
 
     private CreationHandler.PatternCreatingListener mCreatingListener;
 
+    private ComplexityChecker mComplexityChecker;
+
     public LockView(Context context) {
         super(context);
         init(context);
@@ -110,9 +112,18 @@ public class LockView extends View {
 
             @Override
             public void onInputOnce(ArrayList<Integer> pattern) {
-                sendResetMessageDelayed(500);
+                boolean complexityCheckPass = true;
+                if (mComplexityChecker != null) {
+                    complexityCheckPass = mComplexityChecker.check(pattern);
+                }
+                if (complexityCheckPass) {
+                    sendResetMessageDelayed(500);
+                } else {
+                    mCreationHandler.reset();
+                    sendMessageShowWrong();
+                }
                 if (mPatternListener != null) {
-                    mPatternListener.onCreatingInputOnce(pattern);
+                    mPatternListener.onCreatingInputOnce(pattern, complexityCheckPass);
                 }
             }
 
@@ -424,7 +435,7 @@ public class LockView extends View {
     protected void drawPath(Canvas canvas, boolean correct) {
         if (mPathPaint == null) {
             mPathPaint = new Paint();
-            mPathPaint.setStrokeWidth(mRadius * 0.25f);// TODO: HARD CODE
+            mPathPaint.setStrokeWidth(getCircleStrokeWidth()/*mRadius * 0.25f*/);
             mPathPaint.setAntiAlias(true);
             mPathPaint.setDither(true);
             mPathPaint.setStyle(Style.STROKE);
@@ -440,7 +451,7 @@ public class LockView extends View {
         if (mCirclePaint == null) {
             mCirclePaint = new Paint();
             mCirclePaint.setDither(true);
-            mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
+//            mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
             mCirclePaint.setAntiAlias(true);
         }
 
@@ -579,12 +590,23 @@ public class LockView extends View {
     }
 
     public interface PatternListener {
-        public void onCreatingInputOnce(ArrayList<Integer> pattern);
+        public void onCreatingInputOnce(ArrayList<Integer> pattern,
+                boolean complexityCheckPass);
 
         public void onCreatingInputComplete(boolean match,
                 String encryptedPatternStr);
 
         public void onInputCheckResult(boolean correct);
+    }
+
+    public void setComplexityChecker(ComplexityChecker checker) {
+        mComplexityChecker = checker;
+    }
+
+    public static abstract class ComplexityChecker {
+        public boolean check(ArrayList<Integer> pattern) {
+            return true;
+        }
     }
 
     public static enum WorkMode {
