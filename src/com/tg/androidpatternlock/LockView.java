@@ -338,11 +338,11 @@ public class LockView extends View {
         resetPattern();
         final float x = event.getX();
         final float y = event.getY();
-        /* int hitIndex = */detectHitAndDraw(x, y);
-        // if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
-        mPatternInProgress = true;
-        mDisplayMode = DisplayMode.Correct;
-        // }
+        int hitIndex = detectHitAndDraw(x, y);
+        if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
+            mPatternInProgress = true;
+            mDisplayMode = DisplayMode.Correct;
+        }
     }
 
     private void handleActionMove(MotionEvent event) {
@@ -352,19 +352,21 @@ public class LockView extends View {
     }
 
     private void handleActionUp(MotionEvent event) {
-        mTouchForbidden = true;
-        if (mWorkMode == WorkMode.Creating) {
-            mCreationHandler.completeInput(mSelectedIndices);
-        } else if (mWorkMode == WorkMode.Inputing) {
-            boolean correct = mInputHandler.check(mPatternFetcher,
-                    mSelectedIndices);
-            if (correct) {
-                sendResetMessageDelayed(300);
-            } else {
-                sendMessageShowWrong();
-            }
-            if (mPatternListener != null) {
-                mPatternListener.onInputCheckResult(correct);
+        if (mPatternInProgress) {
+            mTouchForbidden = true;
+            if (mWorkMode == WorkMode.Creating) {
+                mCreationHandler.completeInput(mSelectedIndices);
+            } else if (mWorkMode == WorkMode.Inputing) {
+                boolean correct = mInputHandler.check(mPatternFetcher,
+                        mSelectedIndices);
+                if (correct) {
+                    sendResetMessageDelayed(300);
+                } else {
+                    sendMessageShowWrong();
+                }
+                if (mPatternListener != null) {
+                    mPatternListener.onInputCheckResult(correct);
+                }
             }
         }
     }
