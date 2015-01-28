@@ -3,11 +3,13 @@ package com.tg.androidpatternlock;
 import java.util.ArrayList;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Path;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
@@ -78,6 +80,10 @@ public class LockView extends View {
     private CreationHandler.PatternCreatingListener mCreatingListener;
 
     private ComplexityChecker mComplexityChecker;
+
+    private Bitmap mBitmapWrong;
+    private Bitmap mBitmapCorrect;
+    private Bitmap mBitmapUnselected;
 
     public LockView(Context context) {
         super(context);
@@ -198,6 +204,17 @@ public class LockView extends View {
             }
         }
 
+        int diameter = (int) mRadius;//(int) (2 * mRadius);//TODO: why are the images only partially drawn?
+        if (diameter > 0) {
+            try {
+                mBitmapCorrect = scaleBitmap(mBitmapCorrect, diameter, diameter, true);
+                mBitmapWrong = scaleBitmap(mBitmapWrong, diameter, diameter, true);
+                mBitmapUnselected = scaleBitmap(mBitmapUnselected, diameter, diameter, true);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
         mSizesInitialized = true;
     }
 
@@ -216,16 +233,21 @@ public class LockView extends View {
             Cell c = mAllCells.valueAt(i);
             boolean selected = mSelectedIndices.contains(c.index);
             if (mDisplayMode != DisplayMode.Normal && selected) {
+                boolean correct = mDisplayMode == DisplayMode.Correct;
                 if (mUiStyle == UiStyle.Dot) {
                     drawDotSelected(canvas, c.centerX, c.centerY,
-                            mRadius * 0.5f, mDisplayMode == DisplayMode.Correct);
+                            mRadius * 0.5f, correct);
+                } else if (mUiStyle == UiStyle.Image) {
+                    drawImage(canvas, c.centerX, c.centerY, true, correct);
                 } else {
                     drawCircleSelected(canvas, c.centerX, c.centerY, mRadius,
-                            0, mDisplayMode == DisplayMode.Correct);
+                            0, correct);
                 }
             } else {
                 if (mUiStyle == UiStyle.Dot) {
                     drawDotNormal(canvas, c.centerX, c.centerY, mRadius * 0.5f);
+                } else if (mUiStyle == UiStyle.Image) {
+                    drawImage(canvas, c.centerX, c.centerY, false, false);
                 } else {
                     drawCircleNormal(canvas, c.centerX, c.centerY, mRadius);
                 }
@@ -507,6 +529,22 @@ public class LockView extends View {
         canvas.drawCircle(cx, cy, innerRadius, mCirclePaint);
     }
 
+    private void drawImage(Canvas canvas, float cx, float cy, boolean selected,
+            boolean correct) {
+        Bitmap bitmap = null;
+        if (selected) {
+            if (correct) {
+                bitmap = mBitmapCorrect;
+            } else {
+                bitmap = mBitmapWrong;
+            }
+        } else {
+            bitmap = mBitmapUnselected;
+        }
+        Rect dst = new Rect((int)(cx - mRadius), (int)(cy - mRadius), (int)(cx + mRadius), (int)(cy + mRadius));
+        canvas.drawBitmap(bitmap, new Rect(0,0,100,100), dst, null);
+    }
+
     private float getGridSize() {
         float w = this.getWidth();
         float h = this.getHeight();
@@ -569,6 +607,53 @@ public class LockView extends View {
         resetPattern();
     }
 
+    public void setCircleColorNormal(int circleColorNormal) {
+        this.mCircleColorNormal = circleColorNormal;
+    }
+
+    public void setCircleColorCorrect(int circleColorCorrect) {
+        this.mCircleColorCorrect = circleColorCorrect;
+    }
+
+    public void setCircleColorWrong(int circleColorWrong) {
+        this.mCircleColorWrong = circleColorWrong;
+    }
+
+    public void setPathColorCorrect(int pathColorCorrect) {
+        this.mPathColorCorrect = pathColorCorrect;
+    }
+
+    public void setPathColorWrong(int pathColorWrong) {
+        this.mPathColorWrong = pathColorWrong;
+    }
+
+    /**
+     * @param bms as in the order: correct, wrong, unselected
+     */
+    public void setImageBitmaps(Bitmap... bms) {
+        if (bms != null) {
+            int len = bms.length;
+            if (len > 2) {
+                mBitmapCorrect = bms[0];
+                mBitmapWrong = bms[1];
+                mBitmapUnselected = bms[2];
+            } else if (len > 1) {
+                mBitmapCorrect = bms[0];
+                mBitmapWrong = bms[1];
+            } else if (len > 0) {
+                mBitmapCorrect = bms[0];
+            }
+        }
+    }
+
+    private Bitmap scaleBitmap(Bitmap src, int dstWidth, int dstHeight, boolean filter) {
+        if (src == null) {
+            return null;
+        } else {
+            return Bitmap.createScaledBitmap(src, dstWidth, dstHeight, filter);
+        }
+    }
+
     /**
      * Sets the pattern password fetcher to the LockView. Users of the LockView
      * must call this so that the stored pattern can be fetched and compared to
@@ -616,7 +701,7 @@ public class LockView extends View {
     }
 
     public static enum UiStyle {
-        Circle, Dot
+        Circle, Dot, Image
     }
 
     private class Cell {
