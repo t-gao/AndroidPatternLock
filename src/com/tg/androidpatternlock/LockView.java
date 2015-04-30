@@ -1,6 +1,7 @@
 package com.tg.androidpatternlock;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -51,11 +52,14 @@ public class LockView extends View {
     private SparseArray<Cell> mAllCells = new SparseArray<Cell>();
     // private boolean mAllCellsInitialized = false;
 
+    private HashSet<Integer> mCorners;
+
     private boolean mIsThumbMode = false;
 
     private UiStyle mUiStyle = UiStyle.Circle;
     private WorkMode mWorkMode = WorkMode.Inputing;// default is Inputing
     private DisplayMode mDisplayMode = DisplayMode.Normal;
+    private SkipPolicy mSkipPolicy = SkipPolicy.Allow;
 
     private boolean mPatternInProgress = false;
 
@@ -167,6 +171,19 @@ public class LockView extends View {
                 super.handleMessage(msg);
             }
         };
+
+        initCornerIndices();
+    }
+
+    /**
+     *  TODO: this handles only the 3*3 case.
+     */
+    private void initCornerIndices() {
+        mCorners = new HashSet<Integer>();
+        mCorners.add(0);
+        mCorners.add(2);
+        mCorners.add(6);
+        mCorners.add(8);
     }
 
     private void initSizes() {
@@ -306,6 +323,24 @@ public class LockView extends View {
         }
     }
 
+    /**
+     * TODO: this handles only the 3*3 case.
+     * @param last the last index in the selected indices array.
+     * @param current the currently hit index.
+     * @return -1 if no skip happens, otherwise the skipped index.
+     */
+    private Integer getSkippedIndex(Integer last, Integer current) {
+        Integer skipped = -1;
+        if ((mCorners.contains(last) && mCorners.contains(current))
+                || (last == 1 && current == 7)
+                || (last == 7 && current == 1)
+                || (last == 3 && current == 5)
+                || (last == 5 && current == 3)) {
+            skipped = (last + current) / 2;
+        }
+        return skipped;
+    }
+
     private int detectHitAndDraw(float eventX, float eventY) {
         mCurrentPath.rewind();
 
@@ -318,18 +353,39 @@ public class LockView extends View {
                 index = getIndexByRowAndColumn(row, column);
                 if (index >= 0 && index < MAX_ROWS * MAX_COLUMNS
                         && !mSelectedIndices.contains(index)) {
-                    detected = true;
-                    mSelectedIndices.add(index);
-                    float centerX = mFirstX + column * mGridWidth;
-                    float centerY = mFirstY + row * mGridWidth;
+                    boolean valid = true;
+                    if (!mSelectedIndices.isEmpty()) {
+                        Integer last = mSelectedIndices.get(mSelectedIndices.size() - 1);
+                        Integer skipped = getSkippedIndex(last, index);
+                        if (skipped >= 0) {// if skip happens
+                            switch (mSkipPolicy) {
+                                case Allow:
+                                    break;
+                                case AutoConnect:
+                                    mSelectedIndices.add(skipped);
+                                    break;
+                                case Disallow:
+                                    valid = false;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
 
-                    // if (!drawLine) {
-                    invalidate((int) (centerX - mRadius) - 1,
-                            (int) (centerY - mRadius) - 1,
-                            (int) (centerX + mRadius) + 1,
-                            (int) (centerY + mRadius) + 1);
-                    // }
+                    if (valid) {
+                        detected = true;
+                        mSelectedIndices.add(index);
+                        float centerX = mFirstX + column * mGridWidth;
+                        float centerY = mFirstY + row * mGridWidth;
 
+                        // if (!drawLine) {
+                        invalidate((int) (centerX - mRadius) - 1,
+                                (int) (centerY - mRadius) - 1,
+                                (int) (centerX + mRadius) + 1,
+                                (int) (centerY + mRadius) + 1);
+                        // }
+                    }
                 }
             }
         }
@@ -607,6 +663,10 @@ public class LockView extends View {
         resetPattern();
     }
 
+    public void setSkipPolicy(SkipPolicy skipPolicy) {
+        mSkipPolicy = skipPolicy;
+    }
+
     public void setCircleColorNormal(int circleColorNormal) {
         this.mCircleColorNormal = circleColorNormal;
     }
@@ -702,6 +762,10 @@ public class LockView extends View {
 
     public static enum UiStyle {
         Circle, Dot, Image
+    }
+
+    public static enum SkipPolicy {
+        Allow, AutoConnect, Disallow
     }
 
     private class Cell {
