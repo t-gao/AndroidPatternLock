@@ -24,7 +24,6 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
     3. In your activity:
     
         <p> Make these calls:
-        
         <pre><code>
             mLockView = (LockView) findViewById(R.id.lockview);
             mLockView.setPatternListener();
@@ -36,9 +35,8 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
         <p> There are two work modes, creating and input, which respectively should be used when user is creating or inputing pattern password.</p>
               
         <p> Below calls are optional:
-        
         <pre><code>
-	    mLockView.setSkipPolicy(LockView.SkipPolicy_AutoConnect);
+            mLockView.setSkipPolicy(LockView.SkipPolicy_AutoConnect);
             mLockView.setPathColorCorrect(getResources().getColor(R.color.some_color));
             mLockView.setCircleColorNormal(getResources().getColor(R.color.some_color));
             mLockView.setCircleColorCorrect(getResources().getColor(R.color.some_color));
