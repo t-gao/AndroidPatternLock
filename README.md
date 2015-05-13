@@ -51,10 +51,7 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
 
 * Screen shot:
 
-	<p>
-        ![Alt text](/sample/screen-shot2.png?raw=true "Creating mode")
-	</p>
-	
-	<p>
-        ![Alt text](/sample/screen-shot.png?raw=true "Inputing mode")
-	</p>
+	Solarized dark                                                  |  Solarized Ocean
+	:--------------------------------------------------------------:|:-------------------------------------------------:
+	![Alt text](/sample/screen-shot2.png?raw=true "Creating mode")  |  ![Alt text](/sample/screen-shot.png?raw=true "Inputing mode")
+
