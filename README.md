@@ -51,9 +51,10 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
 
 * Screen shot:
 
-    <p>
+	<p>
         ![Alt text](/sample/screen-shot2.png?raw=true "Creating mode")
-    </p>
-    <p>
+	</p>
+	
+	<p>
         ![Alt text](/sample/screen-shot.png?raw=true "Inputing mode")
-    </p>
+	</p>
