@@ -1,5 +1,7 @@
+
 package com.tg.androidpatternlock;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -21,7 +23,7 @@ import android.view.View;
 
 public class LockView extends View {
 
-    private static boolean DEBUG = true;
+    private static boolean DEBUG = false;
 
     private static final float CIRCLE_STROKE_WIDTH_DEFAULT = 4.0f;
 
@@ -56,10 +58,31 @@ public class LockView extends View {
 
     private boolean mIsThumbMode = false;
 
-    private UiStyle mUiStyle = UiStyle.Circle;
-    private WorkMode mWorkMode = WorkMode.Inputing;// default is Inputing
-    private DisplayMode mDisplayMode = DisplayMode.Normal;
-    private SkipPolicy mSkipPolicy = SkipPolicy.Allow;
+    //UI style enum
+    public static final int UiStyle_Circle = 0;
+    public static final int UiStyle_Dot = 1;
+    // FIXME: There's a bug with Image_style, the image is drawn partially.
+    // So don't use this style before the problem is fixed.
+    public static final int UiStyle_Image = 2;
+
+    //Work mode enum
+    public static final int WorkMode_Inputing = 0;
+    public static final int WorkMode_Creating = 1;
+
+    //Skip policy enum
+    public static final int SkipPolicy_Allow = 0;
+    public static final int SkipPolicy_AutoConnect = 1;
+    public static final int SkipPolicy_Disallow = 2;
+
+    //Display mode enum
+    private static final int DisplayMode_Normal = 0;
+    private static final int DisplayMode_Correct = 1;
+    private static final int DisplayMode_Wrong = 2;
+
+    private int mUiStyle = UiStyle_Circle;
+    private int mWorkMode = WorkMode_Inputing;// default is Inputing
+    private int mSkipPolicy = SkipPolicy_Allow;
+    private int mDisplayMode = DisplayMode_Normal;
 
     private boolean mPatternInProgress = false;
 
@@ -155,28 +178,13 @@ public class LockView extends View {
 
         mInputHandler = new InputHandler();
 
-        mHandler = new Handler() {
-
-            @Override
-            public void handleMessage(Message msg) {
-                switch (msg.what) {
-                case MSG_RESET:
-                    resetPattern();
-                    break;
-                case MSG_SHOW_WRONG:
-                    drawWrong();
-                    sendResetMessageDelayed(1000);
-                    break;
-                }
-                super.handleMessage(msg);
-            }
-        };
+        mHandler = new MyHandler(this);
 
         initCornerIndices();
     }
 
     /**
-     *  TODO: this handles only the 3*3 case.
+     * TODO: this handles only the 3*3 case.
      */
     private void initCornerIndices() {
         mCorners = new HashSet<Integer>();
@@ -221,7 +229,8 @@ public class LockView extends View {
             }
         }
 
-        int diameter = (int) mRadius;//(int) (2 * mRadius);//TODO: why are the images only partially drawn?
+        int diameter = (int) mRadius;// (int) (2 * mRadius);//TODO: why are the images only
+                                     // partially drawn?
         if (diameter > 0) {
             try {
                 mBitmapCorrect = scaleBitmap(mBitmapCorrect, diameter, diameter, true);
@@ -249,21 +258,21 @@ public class LockView extends View {
             // Cell c = entry.getValue();
             Cell c = mAllCells.valueAt(i);
             boolean selected = mSelectedIndices.contains(c.index);
-            if (mDisplayMode != DisplayMode.Normal && selected) {
-                boolean correct = mDisplayMode == DisplayMode.Correct;
-                if (mUiStyle == UiStyle.Dot) {
+            if (mDisplayMode != DisplayMode_Normal && selected) {
+                boolean correct = mDisplayMode == DisplayMode_Correct;
+                if (mUiStyle == UiStyle_Dot) {
                     drawDotSelected(canvas, c.centerX, c.centerY,
                             mRadius * 0.5f, correct);
-                } else if (mUiStyle == UiStyle.Image) {
+                } else if (mUiStyle == UiStyle_Image) {
                     drawImage(canvas, c.centerX, c.centerY, true, correct);
                 } else {
                     drawCircleSelected(canvas, c.centerX, c.centerY, mRadius,
                             0, correct);
                 }
             } else {
-                if (mUiStyle == UiStyle.Dot) {
+                if (mUiStyle == UiStyle_Dot) {
                     drawDotNormal(canvas, c.centerX, c.centerY, mRadius * 0.5f);
-                } else if (mUiStyle == UiStyle.Image) {
+                } else if (mUiStyle == UiStyle_Image) {
                     drawImage(canvas, c.centerX, c.centerY, false, false);
                 } else {
                     drawCircleNormal(canvas, c.centerX, c.centerY, mRadius);
@@ -294,7 +303,7 @@ public class LockView extends View {
         }
         initSizes();
         if (mPatternInProgress) {
-            drawPath(canvas, mDisplayMode == DisplayMode.Correct);
+            drawPath(canvas, mDisplayMode == DisplayMode_Correct);
         }
         drawCircles(canvas);
     }
@@ -306,25 +315,26 @@ public class LockView extends View {
         }
 
         switch (event.getAction()) {
-        case MotionEvent.ACTION_DOWN:
-            handleActionDown(event);
-            return true;
-        case MotionEvent.ACTION_UP:
-            handleActionUp(event);
-            return true;
-        case MotionEvent.ACTION_MOVE:
-            handleActionMove(event);
-            return true;
-        case MotionEvent.ACTION_CANCEL:
-            resetPattern();
-            return true;
-        default:
-            return super.onTouchEvent(event);
+            case MotionEvent.ACTION_DOWN:
+                handleActionDown(event);
+                return true;
+            case MotionEvent.ACTION_UP:
+                handleActionUp(event);
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                handleActionMove(event);
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                resetPattern();
+                return true;
+            default:
+                return super.onTouchEvent(event);
         }
     }
 
     /**
      * TODO: this handles only the 3*3 case.
+     * 
      * @param last the last index in the selected indices array.
      * @param current the currently hit index.
      * @return -1 if no skip happens, otherwise the skipped index.
@@ -359,12 +369,12 @@ public class LockView extends View {
                         Integer skipped = getSkippedIndex(last, index);
                         if (skipped >= 0) {// if skip happens
                             switch (mSkipPolicy) {
-                                case Allow:
+                                case SkipPolicy_Allow:
                                     break;
-                                case AutoConnect:
+                                case SkipPolicy_AutoConnect:
                                     mSelectedIndices.add(skipped);
                                     break;
-                                case Disallow:
+                                case SkipPolicy_Disallow:
                                     valid = false;
                                     break;
                                 default:
@@ -419,7 +429,7 @@ public class LockView extends View {
         int hitIndex = detectHitAndDraw(x, y);
         if (hitIndex >= 0 && hitIndex < MAX_COLUMNS * MAX_ROWS) {
             mPatternInProgress = true;
-            mDisplayMode = DisplayMode.Correct;
+            mDisplayMode = DisplayMode_Correct;
         }
     }
 
@@ -432,9 +442,9 @@ public class LockView extends View {
     private void handleActionUp(MotionEvent event) {
         if (mPatternInProgress) {
             mTouchForbidden = true;
-            if (mWorkMode == WorkMode.Creating) {
+            if (mWorkMode == WorkMode_Creating) {
                 mCreationHandler.completeInput(mSelectedIndices);
-            } else if (mWorkMode == WorkMode.Inputing) {
+            } else if (mWorkMode == WorkMode_Inputing) {
                 boolean correct = mInputHandler.check(mPatternFetcher,
                         mSelectedIndices);
                 if (correct) {
@@ -454,23 +464,23 @@ public class LockView extends View {
         mHandler.sendEmptyMessage(MSG_SHOW_WRONG);
     }
 
-    private void sendResetMessageDelayed(long delayMillis) {
+    void sendResetMessageDelayed(long delayMillis) {
         mTouchForbidden = true;
         mHandler.sendEmptyMessageDelayed(MSG_RESET, delayMillis);
     }
 
-    private void resetPattern() {
+    void resetPattern() {
         mSelectedIndices.clear();
         mIsThumbMode = false;
         mPatternInProgress = false;
-        mDisplayMode = DisplayMode.Normal;
+        mDisplayMode = DisplayMode_Normal;
         mTouchForbidden = false;
         mCurrentPath.rewind();
         invalidate();
     }
 
     protected void drawWrong() {
-        mDisplayMode = DisplayMode.Wrong;
+        mDisplayMode = DisplayMode_Wrong;
         invalidate();
     }
 
@@ -515,7 +525,7 @@ public class LockView extends View {
     protected void drawPath(Canvas canvas, boolean correct) {
         if (mPathPaint == null) {
             mPathPaint = new Paint();
-            mPathPaint.setStrokeWidth(getCircleStrokeWidth()/*mRadius * 0.25f*/);
+            mPathPaint.setStrokeWidth(getCircleStrokeWidth()/* mRadius * 0.25f */);
             mPathPaint.setAntiAlias(true);
             mPathPaint.setDither(true);
             mPathPaint.setStyle(Style.STROKE);
@@ -531,7 +541,7 @@ public class LockView extends View {
         if (mCirclePaint == null) {
             mCirclePaint = new Paint();
             mCirclePaint.setDither(true);
-//            mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
+            // mCirclePaint.setStrokeWidth(getCircleStrokeWidth());
             mCirclePaint.setAntiAlias(true);
         }
 
@@ -597,8 +607,9 @@ public class LockView extends View {
         } else {
             bitmap = mBitmapUnselected;
         }
-        Rect dst = new Rect((int)(cx - mRadius), (int)(cy - mRadius), (int)(cx + mRadius), (int)(cy + mRadius));
-        canvas.drawBitmap(bitmap, new Rect(0,0,100,100), dst, null);
+        Rect dst = new Rect((int) (cx - mRadius), (int) (cy - mRadius), (int) (cx + mRadius),
+                (int) (cy + mRadius));
+        canvas.drawBitmap(bitmap, new Rect(0, 0, 100, 100), dst, null);
     }
 
     private float getGridSize() {
@@ -622,21 +633,21 @@ public class LockView extends View {
         return row * MAX_COLUMNS + column;
     }
 
-//    private int[] getRowAndColumnByIndex(int index) {
-//        if (index < 0 || index >= MAX_ROWS * MAX_COLUMNS) {
-//            return null;
-//        }
-//
-//        int[] coords = new int[2];
-//        coords[0] = index / MAX_COLUMNS;// row
-//        coords[1] = index % MAX_COLUMNS;
-//        return coords;
-//    }
+    // private int[] getRowAndColumnByIndex(int index) {
+    // if (index < 0 || index >= MAX_ROWS * MAX_COLUMNS) {
+    // return null;
+    // }
+    //
+    // int[] coords = new int[2];
+    // coords[0] = index / MAX_COLUMNS;// row
+    // coords[1] = index % MAX_COLUMNS;
+    // return coords;
+    // }
 
     public void setThumbMode(boolean isThumb) {
         resetPattern();
         mIsThumbMode = isThumb;
-        mDisplayMode = DisplayMode.Correct;
+        mDisplayMode = DisplayMode_Correct;
     }
 
     public void setThumbPattern(ArrayList<Integer> pattern) {
@@ -648,22 +659,33 @@ public class LockView extends View {
         invalidate();
     }
 
-    public void setUiStyle(UiStyle uiStyle) {
+    /**
+     * @param uiStyle must be one of {@link #UiStyle_Circle}, {@link #UiStyle_Dot} and
+     *            {@link #UiStyle_Image}
+     */
+    public void setUiStyle(int uiStyle) {
         mUiStyle = uiStyle;
     }
 
-    public void setWorkMode(WorkMode workMode) {
+    /**
+     * @param workMode must be one of {@link #WorkMode_Creating} and {@link #WorkMode_Inputing}
+     */
+    public void setWorkMode(int workMode) {
         mWorkMode = workMode;
-        if (workMode == WorkMode.Creating) {
+        if (workMode == WorkMode_Creating) {
             mCreationHandler.reset();
-        } else if (workMode == WorkMode.Inputing) {
+        } else if (workMode == WorkMode_Inputing) {
             mInputHandler.reset();
         }
 
         resetPattern();
     }
 
-    public void setSkipPolicy(SkipPolicy skipPolicy) {
+    /**
+     * @param skipPolicy must be one of {@link #SkipPolicy_Allow}, {@link #SkipPolicy_AutoConnect}
+     *            and {@link #SkipPolicy_Disallow}
+     */
+    public void setSkipPolicy(int skipPolicy) {
         mSkipPolicy = skipPolicy;
     }
 
@@ -714,10 +736,34 @@ public class LockView extends View {
         }
     }
 
+    private static class MyHandler extends Handler {
+
+        private WeakReference<LockView> mLockView;
+
+        public MyHandler(LockView lockView) {
+            mLockView = new WeakReference<LockView>(lockView);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            LockView lv = mLockView.get();
+            if (lv != null) {
+                switch (msg.what) {
+                    case MSG_RESET:
+                        lv.resetPattern();
+                        break;
+                    case MSG_SHOW_WRONG:
+                        lv.drawWrong();
+                        lv.sendResetMessageDelayed(1000);
+                        break;
+                }
+            }
+        }
+    };
+
     /**
-     * Sets the pattern password fetcher to the LockView. Users of the LockView
-     * must call this so that the stored pattern can be fetched and compared to
-     * the one input by user.
+     * Sets the pattern password fetcher to the LockView. Users of the LockView must call this so
+     * that the stored pattern can be fetched and compared to the one input by user.
      * 
      * @param fetcher
      */
@@ -756,18 +802,6 @@ public class LockView extends View {
         }
     }
 
-    public static enum WorkMode {
-        Creating, Inputing
-    }
-
-    public static enum UiStyle {
-        Circle, Dot, Image
-    }
-
-    public static enum SkipPolicy {
-        Allow, AutoConnect, Disallow
-    }
-
     private class Cell {
         Cell(int index, int row, int column, float centerX, float centerY) {
             this.index = index;
@@ -782,9 +816,5 @@ public class LockView extends View {
         int column;
         float centerX;
         float centerY;
-    }
-
-    private enum DisplayMode {
-        Normal, Correct, Wrong
     }
 }

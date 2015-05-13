@@ -1,8 +1,0 @@
-File,LOC,SLOC-P,SLOC-L,MVG,BLOC,C&SLOC,CLOC,CWORD,HCLOC,HCWORD
-E:\Projects\GitHub\AndroidPatternLock\gen\com\tg\androidpatternlock\BuildConfig.java,6,4,3,0,1,0,1,8,1,8
-E:\Projects\GitHub\AndroidPatternLock\gen\com\tg\androidpatternlock\R.java,57,24,17,0,3,0,30,139,6,32
-E:\Projects\GitHub\AndroidPatternLock\src\com\tg\androidpatternlock\CreationHandler.java,91,69,49,8,21,1,1,7,0,0
-E:\Projects\GitHub\AndroidPatternLock\src\com\tg\androidpatternlock\Encrypter.java,89,68,45,12,18,0,3,3,0,0
-E:\Projects\GitHub\AndroidPatternLock\src\com\tg\androidpatternlock\InputHandler.java,36,27,19,3,8,0,1,2,0,0
-E:\Projects\GitHub\AndroidPatternLock\src\com\tg\androidpatternlock\LockView.java,727,584,429,77,110,9,33,170,0,0
-E:\Projects\GitHub\AndroidPatternLock\src\com\tg\androidpatternlock\PatternComparoter.java,73,54,35,13,19,0,0,0,0,0
