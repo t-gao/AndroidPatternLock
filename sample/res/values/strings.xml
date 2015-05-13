@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">PatternLockSample</string>
+    <string name="set_pattern_lock">set up the pattern</string>
+    <string name="input_pattern_pw">draw your pattern to unlock</string>
+    <string name="reset_pattern_pw">rest pattern</string>
+    <string name="pattern_complexity_tips">at least 4 dots please</string>
+    <string name="draw_pattern">draw pattern</string>
+    <string name="draw_pattern_again">draw again</string>
+    <string name="successfully_set">"successfully created!"</string>
+    <string name="pattern_not_match">"don't match with last time, please start over again."</string>
+    <string name="successfully_unlocked">"successfully unlocked!"</string>
+    <string name="pattern_pw_wrong">"wrong pattern!"</string>
+
+</resources>
