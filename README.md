@@ -15,13 +15,13 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
     
         <p>
         <pre><code>
-        
+        ```
             <com.tg.androidpatternlock.LockView
             android:id="@+id/lockview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             />
-            
+        ```
         </code></pre>
         </p>
         
@@ -50,6 +50,11 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
         </p>
 
 * Screen shot:
-        ![Alt text](/sample/screen-shot2.png?raw=true "Creating mode")
 
+	<p>
+        ![Alt text](/sample/screen-shot2.png?raw=true "Creating mode")
+	</p>
+	
+	<p>
         ![Alt text](/sample/screen-shot.png?raw=true "Inputing mode")
+	</p>
