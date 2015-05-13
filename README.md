@@ -7,27 +7,53 @@ Android 手势密码view.
 
 Some encryption methods are provided: MD5/SHA-1/SHA-256.
 
-How to use:
+* How to use:
 
-1. Add this project to be your own project's library project.
+    1. Add this project to be your own project's library project.
 
-2. Use the LockView in you layout xml file, as below:
+    2. Use the LockView in you layout xml file, as below:
+    
+        <p>
+        <pre><code>
+        ```
+            <com.tg.androidpatternlock.LockView
+            android:id="@+id/lockview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            />
+        ```
+        </code></pre>
+        </p>
+        
+    3. In your activity:
+    
+        <p> Make these calls:
+        <pre><code>
+            mLockView = (LockView) findViewById(R.id.lockview);
+            mLockView.setPatternListener();
+            mLockView.setPatternPasswordStorageFetcher();
+            mLockView.setWorkMode();
+        </code></pre>
+        </p>
+        
+        <p> There are two work modes, creating and input, which respectively should be used when user is creating or inputing pattern password.</p>
+              
+        <p> Below calls are optional:
+        
+        <pre><code>
+	        mLockView.setSkipPolicy(LockView.SkipPolicy_AutoConnect);
+            mLockView.setPathColorCorrect(getResources().getColor(R.color.some_color));
+            mLockView.setCircleColorNormal(getResources().getColor(R.color.some_color));
+            mLockView.setCircleColorCorrect(getResources().getColor(R.color.some_color));
+            mLockView.setUiStyle(LockView.UiStyle_Circle);
+        </code></pre>
+        </p>
 
-      <com.tg.androidpatternlock.LockView
-        android:id="@+id/lockview"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        />
+* Screen shot:
 
-3. In your activity:
-      mLockView = (LockView) findViewById(R.id.lockview);
-
-      You should also call below methods:
-      
-          mLockView.setPatternListener();
-          
-          mLockView.setPatternPasswordStorageFetcher();
-          
-          mLockView.setWorkMode();
-  
-      There are two work modes, creating and input, which respectively should be used when user is creating or inputing pattern password.
+    <p>
+        ![Alt text](/sample/screen-shot2.png?raw=true "Creating mode")
+    </p>
+    <p>
+        ![Alt text](/sample/screen-shot.png?raw=true "Inputing mode")
+    </p>
