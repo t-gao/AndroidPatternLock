@@ -24,6 +24,7 @@ Some encryption methods are provided: MD5/SHA-1/SHA-256.
     3. In your activity:
     
         <p> Make these calls:
+        
         ```java
             mLockView = (LockView) findViewById(R.id.lockview);
             mLockView.setPatternListener();
